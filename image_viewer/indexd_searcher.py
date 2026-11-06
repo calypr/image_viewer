@@ -1,16 +1,16 @@
 import urllib
 
 from fastapi import HTTPException
-from image_viewer.object_signer import get_object, get_signed_url, query_url
+from image_viewer.object_signer import get_object_by_checksum, get_signed_url, query_url
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def aviator_url(object_id: str, access_token: str, base_url: str, syfon_url: str) -> str:
+def aviator_url(checksum: str, access_token: str, base_url: str, syfon_url: str) -> str:
     """Return the URL for the Aviator image viewer.
-    object_id: str The object ID of an ome.tif file to view
+    checksum: str The SHA-256 checksum of an ome.tif file to view
     access_token: str The access token to use for authentication
     base_url: str The base URL for the Aviator image viewer
 
@@ -18,15 +18,15 @@ def aviator_url(object_id: str, access_token: str, base_url: str, syfon_url: str
 
     Raises: HTTPException if the object cannot be found or the file name is incorrect
 
-    Validate the object_id and access_token, then get the signed URL for the object and its offsets.json file.
+    Resolve the checksum using access_token, then get the signed URL for the object and its offsets.json file.
     Offset file is looked up by replacing "ome.tif" with "offsets.json" in the file_name. See https://github.com/hms-dbmi/viv/blob/main/sites/avivator/src/utils.js#L151-L159
     Construct the URL for the Aviator image viewer using the signed URLs.
     """
 
-    source_record = get_object(object_id, access_token, syfon_url)
+    source_record = get_object_by_checksum(checksum, access_token, syfon_url)
     if not isinstance(source_record, dict):
-        raise HTTPException(status_code=500, detail=f"Could not find object with id {object_id} {source_record}")
-    logger.error(f"aviator_url source_record {source_record}")
+        raise HTTPException(status_code=500, detail=f"Could not find object with checksum {checksum} {source_record}")
+    object_id = source_record["id"]
     access_methods = source_record.get("access_methods", [])
     if not isinstance(access_methods, list) or len(access_methods) == 0:
         raise HTTPException(status_code=500, detail=f"Could not find access methods within {source_record}")

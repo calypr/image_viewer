@@ -35,7 +35,7 @@ This project provides an API for viewing images. It includes endpoints for healt
     ```sh
     # by default, the application will render URLs for AVIVATOR
     # to overwrite this, set the environment variable BASE_URL
-    # the URL will be BASE_URL{signed_url(object_id)}
+    # the URL will be BASE_URL{signed_url(resolved_object_id)}
     uvicorn image_viewer.app:app --reload
     ```
 
@@ -46,7 +46,7 @@ This project provides an API for viewing images. It includes endpoints for healt
 ## Endpoints
 
 - `GET /_health`: Health check endpoint.
-- `GET /view/{object_id}`: Redirects to the URL of the object.
+- `GET /view/{checksum}`: Resolves a SHA-256 checksum through Syfon and redirects to the image viewer.
 - `GET /openapi.json`: OpenAPI documentation.
 - `GET /docs`: Swagger UI.
 
@@ -71,7 +71,7 @@ The `image_viewer.app` is a FastAPI-based microservice designed to provide an AP
 
 3. **Endpoints**:
    - **Health Check**: `GET /_health` - Returns a status indicating the server is running.
-   - **View Object**: `GET /view/{object_id}` - Redirects to a signed URL for the object.
+   - **View Object**: `GET /view/{checksum}` - Redirects to a signed URL for the object.
 
 4. **Utilities**:
    - **Object Signer**: A utility function `get_signed_url` to generate signed URLs for objects.
@@ -116,7 +116,7 @@ Both of these:
 - **`tests/`**: Directory containing unit tests for the application.
 
 ### User Flow
-- The caller can send a GET request to the /view/{object_id} endpoint to retrieve a signed URL for the specified object.
+- The caller can send a GET request to the /view/{checksum} endpoint to retrieve a signed URL for the specified object.
 - The application will generate a signed URL for the object and return a 307 redirect to the signed URL.
   - The source DRS object is fetched from Syfon, the companion `offsets.json` object is found with Syfon's `/index?url=...` filter, and both objects are signed through Syfon's DRS access endpoint.
   - For the VITESSE use case, the signed URL is included in a more complex "View config" object that is provided in the command line. See #1
