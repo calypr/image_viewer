@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # load our app
-app = FastAPI(settings=settings)
+app = FastAPI()
 
 
 logger = logging.getLogger(__name__)
