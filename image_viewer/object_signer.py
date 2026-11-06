@@ -14,6 +14,19 @@ def get_object(object_id: str, access_token: str, syfon_url: str) -> dict:
     return _get_json(f"{_drs_url(syfon_url)}/objects/{_quote_path(object_id)}", access_token)
 
 
+def get_object_by_checksum(checksum: str, access_token: str, syfon_url: str) -> dict:
+    """Resolve a checksum to a current Syfon DRS object."""
+    payload = _get_json(
+        f"{_drs_url(syfon_url)}/objects/checksum/{_quote_path(checksum)}", access_token
+    )
+    objects = payload.get("resolved_drs_object", [])
+    if not isinstance(objects, list):
+        raise HTTPException(status_code=502, detail="Unexpected Syfon checksum response")
+    if not objects:
+        raise HTTPException(status_code=404, detail=f"No object found for checksum {checksum}")
+    return objects[0]
+
+
 def query_url(object_url: str, access_token: str, syfon_url: str) -> list:
     """Return Syfon/index-compatible records that reference object_url."""
     payload = _get_json(

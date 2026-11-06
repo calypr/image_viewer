@@ -1,9 +1,11 @@
 from urllib.parse import unquote
 
 import requests
+import pytest
+from fastapi import HTTPException
 
 from image_viewer.indexd_searcher import aviator_url
-from image_viewer.object_signer import get_signed_url, query_url
+from image_viewer.object_signer import get_object_by_checksum, get_signed_url, query_url
 
 
 class FakeResponse:
@@ -58,14 +60,14 @@ def test_aviator_url_resolves_offsets_through_syfon(monkeypatch):
 
     def fake_get(url, **kwargs):
         calls.append((url, kwargs))
-        if url.endswith("/ga4gh/drs/v1/objects/source-id"):
+        if url.endswith("/ga4gh/drs/v1/objects/checksum/" + "a" * 64):
             return FakeResponse(
-                {
+                {"resolved_drs_object": [{
                     "id": "source-id",
                     "access_methods": [
                         {"access_id": "source-access", "access_url": {"url": "s3://bucket/image.ome.tif"}},
                     ],
-                }
+                }]}
             )
         if url.endswith("/index"):
             assert kwargs["params"] == {"url": "s3://bucket/image.offsets.json", "limit": 1}
@@ -87,16 +89,27 @@ def test_aviator_url_resolves_offsets_through_syfon(monkeypatch):
 
     monkeypatch.setattr(requests, "get", fake_get)
 
-    redirect = aviator_url("source-id", "token", "/aviator/?image_url=", "https://syfon.example")
+    redirect = aviator_url("a" * 64, "token", "/aviator/?image_url=", "https://syfon.example")
 
     assert redirect.startswith("/aviator/?image_url=")
     assert "offsets_url=" in redirect
     assert unquote(redirect).count("https://signed.example/source?x=1") == 1
     assert unquote(redirect).count("https://signed.example/offsets?x=2") == 1
     assert [call[0] for call in calls] == [
-        "https://syfon.example/ga4gh/drs/v1/objects/source-id",
+        "https://syfon.example/ga4gh/drs/v1/objects/checksum/" + "a" * 64,
         "https://syfon.example/index",
         "https://syfon.example/ga4gh/drs/v1/objects/source-id/access/source-access",
         "https://syfon.example/ga4gh/drs/v1/objects/offsets-id",
         "https://syfon.example/ga4gh/drs/v1/objects/offsets-id/access/offsets-access",
     ]
+
+
+@pytest.mark.parametrize("payload,status", [
+    ({"resolved_drs_object": []}, 404),
+    ({"resolved_drs_object": {}}, 502),
+])
+def test_checksum_lookup_rejects_missing_or_invalid_results(monkeypatch, payload, status):
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeResponse(payload))
+    with pytest.raises(HTTPException) as error:
+        get_object_by_checksum("a" * 64, "token", "https://syfon.example")
+    assert error.value.status_code == status

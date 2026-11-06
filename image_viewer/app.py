@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # load our app
-app = FastAPI(settings=settings)
+app = FastAPI()
 
 
 logger = logging.getLogger(__name__)
@@ -53,12 +53,12 @@ async def health_check():
     return {"status": "OK"}
 
 
-@app.get("/view/{object_id}",
+@app.get("/view/{checksum}",
          summary="View Object",
-         description="Redirects to a URL for the object.",
+         description="Resolves a SHA-256 checksum and redirects to the image viewer.",
          responses={307: {"description": "Temporary Redirect"}})
 async def view_object(
-    object_id: str,
+    checksum: str,
     request: Request,
     authorization: str = Header(None),
     access_token: str = Cookie(None),
@@ -77,7 +77,7 @@ async def view_object(
 
     try:
         syfon_url = _syfon_url_for_request(request)
-        redirect_url = aviator_url(object_id, token, settings.base_url, syfon_url)
+        redirect_url = aviator_url(checksum, token, settings.base_url, syfon_url)
 
         return RedirectResponse(url=redirect_url)
     except HTTPException as e:
